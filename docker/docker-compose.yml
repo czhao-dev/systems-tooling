@@ -1,0 +1,15 @@
+services:
+  devtools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    cap_add:
+      - SYS_PTRACE  # required by gdb, strace, and valgrind
+      - SYS_ADMIN   # required by perf for hardware performance counters
+    security_opt:
+      - seccomp:unconfined  # valgrind/strace need syscalls Docker's default profile blocks
