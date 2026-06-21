@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck bats jq
+
+      - name: Run ShellCheck
+        run: ./scripts/run-shellcheck.sh
+
+      - name: Run Bats tests
+        run: bats tests/
+
+      # sysdoctor.sh exits 0-3 to report the system's actual health status
+      # (OK/WARNING/CRITICAL/UNKNOWN), so only exit codes above 3 indicate a
+      # real script failure. `cmd || code=$?` captures the code without
+      # tripping the `set -e` that GitHub Actions enables for `run:` steps.
+      - name: Smoke test - text report
+        run: |
+          code=0
+          ./sysdoctor.sh --full || code=$?
+          [ "$code" -le 3 ]
+
+      - name: Smoke test - markdown report
+        run: |
+          code=0
+          ./sysdoctor.sh --full --format markdown --output /tmp/report.md || code=$?
+          [ "$code" -le 3 ]
+
+      - name: Smoke test - JSON report is valid
+        run: |
+          code=0
+          ./sysdoctor.sh --full --format json --output /tmp/report.json || code=$?
+          [ "$code" -le 3 ]
+          jq -e . /tmp/report.json

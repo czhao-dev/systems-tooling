@@ -1,632 +1,120 @@
 # SysDoctor
 
+[![CI](https://github.com/czhao-dev/sysdoctor/actions/workflows/ci.yml/badge.svg)](https://github.com/czhao-dev/sysdoctor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Shell: Bash](https://img.shields.io/badge/Shell-Bash-4EAA25)](sysdoctor.sh)
+
 A Bash-based Linux system diagnostics and health report tool.
 
-`sysdoctor` collects CPU, memory, disk, network, process, service, log, and container diagnostics, then generates a readable Markdown or JSON report. It is designed for quick troubleshooting, incident triage, Linux administration practice, and systems/backend portfolio demonstration.
+`sysdoctor` collects CPU, memory, disk, network, process, service, log, and container diagnostics, then generates a readable text, Markdown, or JSON report. It's built for quick troubleshooting, incident triage, and as a practical demonstration of systems/backend scripting skills.
 
 ## Overview
 
-SysDoctor is a standalone shell tool for inspecting the health of a Linux machine.
+SysDoctor is a standalone shell tool for inspecting the health of a Linux machine. It answers questions such as:
 
-It can answer questions such as:
+- Is the system under CPU or memory pressure?
+- Is disk space or inode usage close to full?
+- Which processes are consuming the most resources?
+- Which ports are listening?
+- Are important services running?
+- Are there recent system errors?
+- Is DNS and outbound network connectivity working?
+- Are Docker containers healthy?
+- What should be checked next?
 
-* Is the system under CPU or memory pressure?
-* Is disk space or inode usage close to full?
-* Which processes are consuming the most resources?
-* Which ports are listening?
-* Are important services running?
-* Are there recent system errors?
-* Is DNS and outbound network connectivity working?
-* Are Docker containers healthy?
-* What should be checked next?
-
-The goal is not to replace full observability platforms such as Prometheus, Grafana, Datadog, or New Relic. Instead, this project implements a practical command-line diagnostics tool using standard Linux utilities and defensive Bash scripting.
+The goal isn't to replace observability platforms like Prometheus, Grafana, or Datadog. Instead, this project implements a single-file-friendly, dependency-free diagnostics tool using standard Linux utilities and defensive Bash scripting.
 
 ## Features
 
-### System Diagnostics
+- **System** — OS, kernel, hostname, and uptime
+- **CPU** — load average, core count, load-per-core, top consumers
+- **Memory** — usage, swap, top consumers, configurable pressure thresholds
+- **Disk** — filesystem and inode usage with warning/critical thresholds
+- **Network** — interfaces, default gateway, DNS, internet connectivity, optional HTTP endpoint check, listening ports
+- **Services** — failed systemd units, single-service status and logs
+- **Logs** — scans `journalctl` or fallback log files for common error patterns
+- **Docker** — running/stopped/unhealthy containers, restart counts, resource usage (optional, skipped gracefully if Docker isn't available)
+- **Reports** — terminal, Markdown, or JSON output, with summary recommendations and a configurable output path
 
-* [x] OS and kernel information
-* [x] Hostname and uptime
-* [x] CPU load average
-* [x] CPU core count
-* [x] Memory usage
-* [x] Swap usage
-* [x] Disk usage
-* [x] Inode usage
-* [x] Top processes by CPU
-* [x] Top processes by memory
-
-### Network Diagnostics
-
-* [x] Network interface summary
-* [x] Listening ports
-* [x] Default gateway
-* [x] DNS resolution check
-* [x] Internet connectivity check
-* [x] HTTP endpoint check
-* [x] Optional latency check with `ping`
-
-### Service Diagnostics
-
-* [x] Check systemd service status
-* [x] Show failed systemd units
-* [x] Show recent service logs
-* [x] Detect unavailable `systemctl` gracefully
-
-### Log Diagnostics
-
-* [x] Scan recent system logs
-* [x] Detect common error patterns
-* [x] Count warnings and errors
-* [x] Show recent critical log entries
-* [x] Support both `journalctl` and fallback log files
-
-### Docker Diagnostics, Optional
-
-* [x] List running containers
-* [x] Show unhealthy containers
-* [x] Show restart counts
-* [x] Show container resource usage, if available
-* [x] Detect unavailable Docker gracefully
-
-### Reports
-
-* [x] Human-readable terminal output
-* [x] Markdown report
-* [x] JSON report
-* [x] Summary recommendations
-* [x] Configurable output path
-
-### Developer Experience
-
-* [x] Strict Bash mode
-* [x] ShellCheck-compatible scripts
-* [x] Modular script layout
-* [x] Bats tests
-* [x] GitHub Actions CI
-* [x] Sample reports
-
-Update the checklist as implementation progresses.
-
-## Motivation
-
-When debugging Linux systems, engineers often run many commands manually:
-
-```bash
-top
-free -h
-df -h
-ss -tulpen
-journalctl -p err
-systemctl --failed
-docker ps
-```
-
-SysDoctor automates this workflow and turns the results into a structured report. It is useful for learning Linux operations, practicing Bash scripting, and demonstrating practical systems troubleshooting skills.
-
-## Example Output
-
-```text
-SysDoctor Health Report
-Generated: 2026-06-21 14:30:12
-
-System:
-  Hostname: devbox
-  OS: Ubuntu 24.04
-  Kernel: 6.8.0
-  Uptime: 5 days, 3 hours
-
-CPU:
-  Load average: 0.52 0.61 0.58
-  CPU cores: 8
-  Status: OK
-
-Memory:
-  Used: 6.2 GiB / 16.0 GiB
-  Swap: 0.0 GiB / 2.0 GiB
-  Status: OK
-
-Disk:
-  /: 68% used
-  /var: 82% used
-  Status: WARNING
-
-Network:
-  Default gateway: 192.168.1.1
-  DNS check: OK
-  Internet check: OK
-
-Services:
-  Failed units: 1
-  nginx: active
-  postgresql: active
-  docker: active
-
-Recommendations:
-  - Check disk usage under /var.
-  - Investigate failed systemd unit: backup.service.
-```
+Every check degrades gracefully: if a tool (`systemctl`, `docker`, `ss`, ...) isn't available, that section reports `UNKNOWN` instead of crashing the whole run.
 
 ## Quick Start
 
-Clone the repository:
+Clone the repository, make the entrypoint executable, and run a full report straight from the working directory — no build step or dependencies beyond standard Bash and coreutils. A sample run looks like the reports checked into [`examples/`](examples/): a Markdown report at [`examples/sample-report.md`](examples/sample-report.md) and the equivalent JSON at [`examples/sample-report.json`](examples/sample-report.json).
 
-```bash
-git clone https://github.com/czhao-dev/sysdoctor.git
-cd sysdoctor
-```
-
-Make the script executable:
-
-```bash
-chmod +x sysdoctor.sh
-```
-
-Run a full diagnostic report:
-
-```bash
-./sysdoctor.sh --full
-```
-
-Generate a Markdown report:
-
-```bash
-./sysdoctor.sh --full --format markdown --output report.md
-```
-
-Generate a JSON report:
-
-```bash
-./sysdoctor.sh --full --format json --output report.json
-```
+For a system-wide `sysdoctor` command, run `scripts/install.sh`, which copies the project into a prefix (`/usr/local` by default, or pass `--prefix` for a user-local install) and symlinks the entrypoint onto `PATH`.
 
 ## Usage
 
-```text
-Usage:
-  sysdoctor.sh [options]
-
-Options:
-  --full                         Run all diagnostics
-  --system                       Run system diagnostics
-  --cpu                          Show CPU diagnostics
-  --memory                       Show memory diagnostics
-  --disk                         Show disk diagnostics
-  --network                      Show network diagnostics
-  --services                     Show service diagnostics
-  --logs                         Show recent log diagnostics
-  --docker                       Show Docker diagnostics
-  --service NAME                 Check a specific systemd service
-  --url URL                      Check an HTTP endpoint
-  --format text|markdown|json    Output format
-  --output PATH                  Write report to file
-  --verbose                      Print detailed diagnostics
-  --quiet                        Print only summary
-  --help                         Show help message
-```
-
-## Example Commands
-
-Run all checks:
-
-```bash
-./sysdoctor.sh --full
-```
-
-Check CPU, memory, and disk only:
-
-```bash
-./sysdoctor.sh --cpu --memory --disk
-```
-
-Check network and DNS:
-
-```bash
-./sysdoctor.sh --network
-```
-
-Check a service:
-
-```bash
-./sysdoctor.sh --service nginx
-```
-
-Check an HTTP endpoint:
-
-```bash
-./sysdoctor.sh --url https://example.com/health
-```
-
-Write a Markdown report:
-
-```bash
-./sysdoctor.sh --full --format markdown --output reports/health-report.md
-```
-
-Write a JSON report:
-
-```bash
-./sysdoctor.sh --full --format json --output reports/health-report.json
-```
-
-## Project Structure
-
-```text
-sysdoctor/
-├── README.md
-├── LICENSE
-├── sysdoctor.sh
-├── lib/
-│   ├── common.sh
-│   ├── system.sh
-│   ├── cpu.sh
-│   ├── memory.sh
-│   ├── disk.sh
-│   ├── network.sh
-│   ├── services.sh
-│   ├── logs.sh
-│   ├── docker.sh
-│   ├── report_text.sh
-│   ├── report_markdown.sh
-│   └── report_json.sh
-├── tests/
-│   ├── common.bats
-│   ├── parsing.bats
-│   ├── report.bats
-│   └── fixtures/
-├── examples/
-│   ├── sample-report.md
-│   └── sample-report.json
-├── scripts/
-│   ├── install.sh
-│   └── run-shellcheck.sh
-└── .github/
-    └── workflows/
-        └── ci.yml
-```
-
-## Design Principles
-
-### Defensive Bash
-
-SysDoctor uses strict Bash settings:
-
-```bash
-set -euo pipefail
-```
-
-The script is designed to handle missing commands, permission issues, and platform differences gracefully.
-
-### Portable Linux Tooling
-
-SysDoctor relies on common Linux tools when available:
-
-```text
-uname
-uptime
-free
-df
-du
-ps
-ss
-ip
-ping
-curl
-systemctl
-journalctl
-docker
-```
-
-When a tool is missing, SysDoctor reports the missing dependency instead of failing unexpectedly.
-
-### Human-Readable Reports
-
-The default output is intended for terminal use. Markdown reports are useful for incident notes, pull requests, tickets, and documentation. JSON reports are useful for automation and future integrations.
-
-### No Destructive Actions
-
-SysDoctor is read-only by default. It does not delete files, restart services, change system settings, or modify firewall rules.
-
-## Diagnostics Details
-
-### CPU Checks
-
-CPU diagnostics include:
-
-* load average
-* CPU core count
-* load-per-core estimate
-* top CPU-consuming processes
-
-Example warning rule:
-
-```text
-If 1-minute load average > number of CPU cores, report CPU pressure.
-```
-
-### Memory Checks
-
-Memory diagnostics include:
-
-* total memory
-* used memory
-* available memory
-* swap usage
-* top memory-consuming processes
-
-Example warning rule:
-
-```text
-If available memory is below 10%, report memory pressure.
-```
-
-### Disk Checks
-
-Disk diagnostics include:
-
-* filesystem usage
-* inode usage
-* largest mount points
-* warning threshold
-* critical threshold
-
-Example warning rules:
-
-```text
-Disk usage >= 80%: warning
-Disk usage >= 90%: critical
-Inode usage >= 80%: warning
-Inode usage >= 90%: critical
-```
-
-### Network Checks
-
-Network diagnostics include:
-
-* network interfaces
-* default route
-* DNS lookup
-* outbound connectivity
-* listening ports
-* optional HTTP endpoint checks
-
-Example checks:
-
-```bash
-getent hosts google.com
-curl -I --max-time 5 https://example.com
-ss -tulpen
-```
-
-### Service Checks
-
-Service diagnostics include:
-
-* failed systemd units
-* specific service status
-* recent logs for selected services
-
-Example:
-
-```bash
-./sysdoctor.sh --service postgresql
-```
-
-### Log Checks
-
-Log diagnostics scan recent logs for common error patterns:
-
-```text
-error
-failed
-critical
-panic
-timeout
-out of memory
-permission denied
-connection refused
-```
-
-SysDoctor prefers `journalctl` when available and falls back to common log files such as `/var/log/syslog` or `/var/log/messages`.
-
-### Docker Checks
-
-Docker diagnostics include:
-
-* running containers
-* stopped containers
-* unhealthy containers
-* restart counts
-* container resource usage, if available
-
-Docker checks are skipped if Docker is not installed or the user does not have permission to access the Docker daemon.
+Run `sysdoctor.sh [options]` from the project directory (or `sysdoctor [options]` if installed via `scripts/install.sh`).
+
+| Option | Description |
+|---|---|
+| `--full` | Run all diagnostics |
+| `--system`, `--cpu`, `--memory`, `--disk`, `--network`, `--services`, `--logs`, `--docker` | Run an individual diagnostic category |
+| `--service NAME` | Check a specific systemd service |
+| `--url URL` | Check an HTTP endpoint |
+| `--format text\|markdown\|json` | Output format (default: `text`) |
+| `--output PATH` | Write the report to a file instead of stdout |
+| `--config PATH` | Load thresholds and targets from a config file |
+| `--verbose` | Print more detail (more processes, more log lines, more ports) |
+| `--quiet` | Print only the summary and recommendations |
+| `--help` | Show the help message |
+
+The process exits `0` (OK), `1` (WARNING), `2` (CRITICAL), or `3` (UNKNOWN), reflecting the worst status across every category that ran — handy for cron jobs or CI gates.
 
 ## Configuration
 
-SysDoctor can optionally read a simple configuration file:
+SysDoctor optionally reads a `KEY=VALUE` config file via `--config`, parsed defensively (no arbitrary code execution — only a fixed allowlist of keys is accepted). Supported keys: `DISK_WARNING_THRESHOLD`, `DISK_CRITICAL_THRESHOLD`, `INODE_WARNING_THRESHOLD`, `INODE_CRITICAL_THRESHOLD`, `MEMORY_WARNING_THRESHOLD`, `MEMORY_CRITICAL_THRESHOLD`, `PING_TARGET`, `DNS_TEST_HOST`, `HTTP_TEST_URL`, and `LOG_LOOKBACK`. See [`tests/fixtures/sample.conf`](tests/fixtures/sample.conf) for an example.
 
-```bash
-./sysdoctor.sh --config sysdoctor.conf --full
-```
+## Project Structure
 
-Example `sysdoctor.conf`:
+- [`sysdoctor.sh`](sysdoctor.sh) — entrypoint: argument parsing, dispatch, exit-code mapping
+- `lib/` — one module per concern: `common`, `system`, `cpu`, `memory`, `disk`, `network`, `services`, `logs`, `docker`, plus `report_text`, `report_markdown`, and `report_json` formatters
+- `tests/` — Bats test suite (`common.bats`, `parsing.bats`, `report.bats`) and fixtures
+- `examples/` — sample generated reports
+- `scripts/` — `install.sh` and `run-shellcheck.sh`
+- `.github/workflows/ci.yml` — GitHub Actions pipeline
 
-```bash
-DISK_WARNING_THRESHOLD=80
-DISK_CRITICAL_THRESHOLD=90
-MEMORY_WARNING_THRESHOLD=90
-PING_TARGET="8.8.8.8"
-DNS_TEST_HOST="google.com"
-HTTP_TEST_URL="https://example.com"
-LOG_LOOKBACK="1h"
-```
+## Design Principles
 
-## Testing
+**Defensive Bash.** The entrypoint runs under `set -euo pipefail`, with care taken to avoid the classic pitfalls that strict mode introduces around pipelines and `SIGPIPE` (e.g. truncating process listings never closes a pipe early on an upstream producer).
 
-This project uses Bats for shell tests.
+**Portable where it can be, Linux-first where it matters.** Checks prefer Linux-native sources (`/proc/loadavg`, `/proc/meminfo`, `journalctl`, `systemctl`) and fall back to portable equivalents where reasonable, but service and log diagnostics are inherently systemd/Linux-specific and report `UNKNOWN` elsewhere rather than guessing.
 
-Run tests:
+**Human-readable by default, structured on request.** Terminal output is for humans; Markdown is for incident notes and PRs; JSON is for automation.
 
-```bash
-bats tests/
-```
+**No destructive actions.** SysDoctor is read-only. It never deletes files, restarts services, kills processes, or changes system configuration.
 
-Run ShellCheck:
+## Testing & Quality
 
-```bash
-shellcheck sysdoctor.sh lib/*.sh
-```
-
-Run all checks:
-
-```bash
-./scripts/run-shellcheck.sh
-bats tests/
-```
-
-## CI
-
-The GitHub Actions workflow runs:
-
-* ShellCheck
-* Bats tests
-* basic execution smoke tests
-
-Example CI workflow:
-
-```yaml
-name: CI
-
-on:
-  push:
-  pull_request:
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck bats
-
-      - name: Run ShellCheck
-        run: shellcheck sysdoctor.sh lib/*.sh
-
-      - name: Run tests
-        run: bats tests/
-```
-
-## Example Markdown Report
-
-```markdown
-# SysDoctor Health Report
-
-Generated: 2026-06-21 14:30:12
-
-## Summary
-
-| Category | Status |
-|---|---|
-| CPU | OK |
-| Memory | OK |
-| Disk | WARNING |
-| Network | OK |
-| Services | WARNING |
-| Logs | WARNING |
-
-## Recommendations
-
-- Check disk usage under `/var`.
-- Investigate failed systemd unit `backup.service`.
-- Review recent error logs from the last hour.
-```
-
-## Roadmap
-
-### Phase 1: Core Diagnostics
-
-* [ ] Add system summary
-* [ ] Add CPU diagnostics
-* [ ] Add memory diagnostics
-* [ ] Add disk diagnostics
-* [ ] Add text output
-
-### Phase 2: Network and Services
-
-* [ ] Add network interface summary
-* [ ] Add DNS check
-* [ ] Add HTTP endpoint check
-* [ ] Add listening port report
-* [ ] Add systemd service checks
-
-### Phase 3: Logs and Docker
-
-* [ ] Add journal log scanning
-* [ ] Add error-pattern detection
-* [ ] Add Docker diagnostics
-* [ ] Add container health checks
-
-### Phase 4: Reports
-
-* [ ] Add Markdown output
-* [ ] Add JSON output
-* [ ] Add configurable thresholds
-* [ ] Add sample reports
-
-### Phase 5: Quality and Polish
-
-* [ ] Add Bats tests
-* [ ] Add ShellCheck CI
-* [ ] Add installation script
-* [ ] Add architecture notes
-* [ ] Add demo screenshots or terminal recordings
+- **ShellCheck:** zero warnings across `sysdoctor.sh`, every file in `lib/`, and `scripts/` (run via `./scripts/run-shellcheck.sh`).
+- **Bats:** 34 tests passing, covering shared helpers (status ranking, JSON escaping, config loading), CLI argument parsing, and all three report formatters (run via `bats tests/`).
+- **CI:** every push and pull request runs ShellCheck, the full Bats suite, and end-to-end smoke tests of all three output formats on `ubuntu-latest` via GitHub Actions.
 
 ## What This Project Demonstrates
 
-This project demonstrates:
-
-* Bash scripting
-* Linux diagnostics
-* systems troubleshooting
-* process inspection
-* disk and memory analysis
-* network debugging
-* log analysis
-* Docker inspection
-* defensive shell scripting
-* report generation
-* CLI design
-* testable shell code with Bats
-* CI for shell projects
+- Bash scripting and CLI design
+- Linux systems troubleshooting and diagnostics
+- Process, disk, memory, and network inspection
+- Log analysis and Docker inspection
+- Defensive shell scripting (strict mode, graceful degradation, safe config parsing)
+- Report generation across multiple output formats
+- Testable shell code with Bats, and CI for shell projects
 
 ## Limitations
 
-SysDoctor is intended as a lightweight diagnostics helper.
+SysDoctor is a lightweight diagnostics helper, not a continuous monitoring system:
 
-Limitations:
-
-* It is not a continuous monitoring system.
-* It does not replace centralized logging or metrics platforms.
-* Some checks require Linux-specific tools.
-* Some service and log checks may require elevated permissions.
-* Docker checks require Docker access.
-* Output may vary across Linux distributions.
+- It does not replace centralized logging or metrics platforms.
+- Some checks require Linux-specific tools and report `UNKNOWN` elsewhere.
+- Some service and log checks may require elevated permissions.
+- Docker checks require Docker daemon access.
+- Output may vary across Linux distributions.
 
 ## Safety
 
-SysDoctor is designed to be read-only. It does not:
-
-* delete files
-* restart services
-* kill processes
-* change firewall rules
-* modify system configuration
-* install packages automatically
+SysDoctor is read-only by design. It does not delete files, restart services, kill processes, change firewall rules, modify system configuration, or install packages.
 
 ## License
 
