@@ -91,7 +91,7 @@ setup() {
 }
 
 @test "load_config only applies allowed keys" {
-    config_file="$BATS_TEST_TMPDIR/sysdoctor.conf"
+    config_file="$BATS_TEST_TMPDIR/linux-sys-report-cli.conf"
     cat > "$config_file" <<'EOF'
 DISK_WARNING_THRESHOLD=70
 NOT_A_REAL_KEY=danger

@@ -3,7 +3,7 @@
 setup() {
     ROOT_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
     # shellcheck disable=SC1091
-    source "$ROOT_DIR/sysdoctor.sh"
+    source "$ROOT_DIR/linux-sys-report-cli.sh"
 }
 
 @test "contains finds an existing element" {
@@ -88,13 +88,13 @@ setup() {
 }
 
 @test "--help prints usage and exits 0" {
-    run "$ROOT_DIR/sysdoctor.sh" --help
+    run "$ROOT_DIR/linux-sys-report-cli.sh" --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"Usage:"* ]]
 }
 
 @test "running with no arguments prints usage and exits 1" {
-    run "$ROOT_DIR/sysdoctor.sh"
+    run "$ROOT_DIR/linux-sys-report-cli.sh"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Usage:"* ]]
 }

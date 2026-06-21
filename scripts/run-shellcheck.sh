@@ -10,6 +10,6 @@ if ! command -v shellcheck >/dev/null 2>&1; then
 fi
 
 cd "$ROOT_DIR"
-echo "Running ShellCheck on sysdoctor.sh and lib/*.sh ..."
-shellcheck -x sysdoctor.sh lib/*.sh
+echo "Running ShellCheck on linux-sys-report-cli.sh and lib/*.sh ..."
+shellcheck -x linux-sys-report-cli.sh lib/*.sh
 echo "ShellCheck passed."

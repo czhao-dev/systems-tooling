@@ -1,4 +1,4 @@
-# SysDoctor Health Report
+# linux-sys-report-cli Health Report
 
 Generated: 2026-06-21 14:30:12
 

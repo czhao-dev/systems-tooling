@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# common.sh - shared helpers, config, and result collection for SysDoctor
+# common.sh - shared helpers, config, and result collection for linux-sys-report-cli
 # shellcheck shell=bash
 # Globals defined here are consumed by the other lib/*.sh modules that source this file.
 # shellcheck disable=SC2034
@@ -29,7 +29,7 @@ else
     declare -gr COLOR_RESET=""
 fi
 
-# --- Runtime flags (set by sysdoctor.sh) ---
+# --- Runtime flags (set by linux-sys-report-cli.sh) ---
 VERBOSE=false
 QUIET=false
 

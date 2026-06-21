@@ -26,7 +26,7 @@ print_recommendations_text() {
 generate_text_report() {
     local generated_at="$1" overall="$2"
 
-    printf 'SysDoctor Health Report\n'
+    printf 'linux-sys-report-cli Health Report\n'
     printf 'Generated: %s\n\n' "$generated_at"
 
     printf 'Overall status: %s%s%s\n\n' "$(status_color "$overall")" "$overall" "$COLOR_RESET"

@@ -31,7 +31,7 @@ Status: WARNING" '{"filesystems":[{"mount":"/","use_percent":85}],"status":"WARN
 
 @test "generate_text_report includes header, summary, and sections" {
     output="$(generate_text_report "2026-06-21 12:00:00" "$STATUS_WARNING")"
-    [[ "$output" == *"SysDoctor Health Report"* ]]
+    [[ "$output" == *"linux-sys-report-cli Health Report"* ]]
     [[ "$output" == *"Generated: 2026-06-21 12:00:00"* ]]
     [[ "$output" == *"Overall status: WARNING"* ]]
     [[ "$output" == *"CPU"*"OK"* ]]
@@ -54,7 +54,7 @@ Status: WARNING" '{"filesystems":[{"mount":"/","use_percent":85}],"status":"WARN
 
 @test "generate_markdown_report produces a summary table and recommendations" {
     output="$(generate_markdown_report "2026-06-21 12:00:00" "$STATUS_WARNING")"
-    [[ "$output" == *"# SysDoctor Health Report"* ]]
+    [[ "$output" == *"# linux-sys-report-cli Health Report"* ]]
     [[ "$output" == *"| CPU | OK |"* ]]
     [[ "$output" == *"| Disk | WARNING |"* ]]
     [[ "$output" == *"- Disk usage on / is high (85%)."* ]]

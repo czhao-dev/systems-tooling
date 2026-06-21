@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SysDoctor - Linux system diagnostics and health report tool
+# linux-sys-report-cli - Linux system diagnostics and health report tool
 set -euo pipefail
 
 # Resolve the real script location even when invoked through a symlink
@@ -51,7 +51,7 @@ SELECTED=()
 print_usage() {
     cat <<'EOF'
 Usage:
-  sysdoctor.sh [options]
+  linux-sys-report-cli.sh [options]
 
 Options:
   --full                         Run all diagnostics
