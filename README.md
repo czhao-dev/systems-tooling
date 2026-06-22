@@ -1,5 +1,11 @@
 # CMake Systems Build Lab
 
+[![CMake](https://img.shields.io/badge/build-CMake%20%2B%20Ninja-064F8C?logo=cmake&logoColor=white)](CMakePresets.json)
+[![C](https://img.shields.io/badge/C-11-555555?logo=c)](https://en.wikipedia.org/wiki/C11_(C_standard_revision))
+[![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/17)
+[![CI](https://github.com/czhao-dev/cmake-systems-build-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/czhao-dev/cmake-systems-build-lab/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A modern CMake build engineering lab for C/C++ systems projects.
 
 This project demonstrates production-style build infrastructure using CMake presets, target-based CMake, compiler warnings, sanitizers, coverage, CTest, dependency management, packaging, install/export targets, toolchain files, and CI.
@@ -97,8 +103,6 @@ This project collects those ideas into one compact, easy-to-study repository.
 * [x] Sanitizer build
 * [x] Test execution
 * [x] Optional coverage upload
-
-Update this checklist as implementation progresses.
 
 ## Demo Project Structure
 
@@ -324,6 +328,47 @@ target_link_libraries(buildlab_core
 )
 ```
 
+## Architecture
+
+A few design decisions recur throughout this codebase. They're called out
+here once instead of being re-explained at each call site.
+
+**Why six separate `cmake/` modules instead of one large `CMakeLists.txt`.**
+Options, warnings, sanitizers, coverage, static analysis, and package
+export are independent concerns: each is toggled by its own cache
+variables, each can be reasoned about (and tested) in isolation, and each
+is small enough to be copied into another project wholesale. A single
+monolithic file would still work, but every concern would be entangled
+with every other one.
+
+**Why flags are attached to `INTERFACE` targets instead of set globally.**
+`buildlab_project_options` and `buildlab_project_warnings` are empty
+`INTERFACE` libraries that carry compiler/linker flags; every first-party
+target links them `PRIVATE`. This is deliberately *not* `add_compile_options()`
+at the top of the tree. Because GoogleTest is fetched via `FetchContent` and
+built as part of this project's CMake tree, a global flag would also apply
+to GoogleTest's own sources -- enabling sanitizers or `-Werror` globally
+would then fail on warnings this project doesn't own. Scoping flags to two
+named targets keeps the blast radius limited to `buildlab_core`,
+`buildlab_net`, and `buildlab_cli`.
+
+**Why `buildlab::core` / `buildlab::net` exist as `ALIAS` targets even
+before installation.** In-tree consumers (`tests/`, `benchmarks/`,
+`src/cli/`) link against the exact same `buildlab::` spelling that a
+downstream project uses after `find_package(buildlab)`. There's one
+mental model for "how do I depend on this library" regardless of whether
+you're inside this repository or consuming an installed copy of it. The
+`EXPORT_NAME` target property (see `src/core/CMakeLists.txt`) is what
+makes the *installed* import target land on `buildlab::core` rather than
+the raw `buildlab::buildlab_core`.
+
+**Why presets instead of remembered `-D` flags.** Every sanitizer/coverage
+combination this project supports is a fixed set of cache variables (see
+`CMakePresets.json`). Presets make those combinations reproducible across
+contributors and CI without anyone needing to memorize flag combinations,
+and `CMakePresets.json` is itself a CMake-native file -- it reinforces
+that CMake, not a wrapper script, drives the build.
+
 ## CMake Modules
 
 ### `ProjectOptions.cmake`
@@ -388,7 +433,12 @@ include-what-you-use, optional
 
 ## Testing
 
-The project uses CTest.
+The project uses CTest, with test cases written against GoogleTest (fetched
+automatically via CMake's `FetchContent` -- see `tests/CMakeLists.txt`).
+This is the project's concrete demonstration of the "dependency
+management" feature: a real third-party dependency, fetched, built, and
+linked entirely through CMake, isolated from this project's own
+compiler-warning and sanitizer flags (see [Architecture](#architecture)).
 
 Run all tests:
 
@@ -419,6 +469,51 @@ Test goals:
 * verify sanitizer builds
 * verify downstream package usage
 
+## Test Results
+
+Results from the most recent local end-to-end verification (Apple Clang
+21, macOS arm64, CMake 4.3.2, Ninja). All 32 GoogleTest cases pass on
+every preset; sanitizer presets reported zero issues on both the test
+binary and the CLI binary exercised manually.
+
+| Preset           | Configure | Build | Tests        | Notes                              |
+| ---------------- | --------- | ----- | ------------ | ----------------------------------- |
+| `debug`          | OK        | OK    | 32/32 passed |                                      |
+| `release`        | OK        | OK    | 32/32 passed |                                      |
+| `relwithdebinfo` | OK        | OK    | 32/32 passed |                                      |
+| `asan`           | OK        | OK    | 32/32 passed | 0 sanitizer reports                 |
+| `ubsan`          | OK        | OK    | 32/32 passed | 0 sanitizer reports                 |
+| `tsan`           | OK        | OK    | 32/32 passed | 0 sanitizer reports                 |
+| `coverage`       | OK        | OK    | 32/32 passed | see coverage table below            |
+| `benchmark`      | OK        | OK    | n/a          | `buildlab-bench` runs, see Benchmarks |
+
+Also verified end-to-end on this machine: `cmake --install` + `cpack`
+(TGZ/ZIP) package generation and content layout, the `examples/downstream-project`
+`find_package(buildlab)` consumption flow, `scripts/format.sh` (idempotent
+on a second run), `scripts/run-clang-tidy.sh`, direct `cppcheck`, and the
+full `Makefile` wrapper.
+
+Coverage (Clang source-based coverage via `scripts/coverage.sh`, line
+coverage column):
+
+| File           | Lines covered |
+| -------------- | -------------- |
+| `src/core/core.c` | 100% |
+| `src/net/net.cpp` | 100% |
+| `src/cli/main.cpp` | 0% (exercised manually, not by the automated test suite) |
+| **Total**      | **58%**        |
+
+The CLI's argument-dispatch code is deliberately not part of the automated
+coverage number above -- it's covered by the manual verification pass
+described in this README, not by `buildlab_tests`. The two libraries that
+ship to downstream consumers (`buildlab_core`, `buildlab_net`) are fully
+covered.
+
+GitHub Actions CI matrix (see badge at the top of this file for current
+status): `ubuntu-latest`×{gcc-debug, gcc-release, clang-debug, clang-asan,
+clang-ubsan}, `macos-latest`×{clang-release}, plus separate
+`static-analysis` (clang-tidy) and `coverage` (lcov/gcov) jobs.
+
 ## Benchmarks
 
 Benchmarks are optional and can be enabled through the benchmark preset.
@@ -444,6 +539,13 @@ Run `clang-tidy`:
 
 ```bash
 ./scripts/run-clang-tidy.sh
+```
+
+Apple Clang does not ship `clang-tidy`. On macOS with Homebrew LLVM
+installed, point the script at it explicitly:
+
+```bash
+CLANG_TIDY=/opt/homebrew/opt/llvm/bin/clang-tidy ./scripts/run-clang-tidy.sh build/debug
 ```
 
 Run `cppcheck`:
@@ -505,6 +607,25 @@ A full downstream example is included under:
 examples/downstream-project/
 ```
 
+It is a standalone CMake project (its own `cmake_minimum_required`/`project()`),
+deliberately not built as part of this repository's own preset-driven
+build. Try it after installing the main project:
+
+```bash
+# 1. Build and install the main project
+cmake --preset release
+cmake --build --preset release
+cmake --install build/release --prefix "$PWD/install"
+
+# 2. Configure and build the downstream example against the installed package
+cmake -S examples/downstream-project -B examples/downstream-project/build \
+      -G Ninja -DCMAKE_PREFIX_PATH="$PWD/install"
+cmake --build examples/downstream-project/build
+
+# 3. Run it
+./examples/downstream-project/build/downstream_app
+```
+
 ## Packaging
 
 Generate a package with CPack:
@@ -544,9 +665,11 @@ set(CMAKE_CXX_COMPILER clang++)
 
 ## Continuous Integration
 
-The GitHub Actions workflow builds and tests the project across multiple configurations.
+The GitHub Actions workflow (`.github/workflows/ci.yml`) builds and tests
+the project across multiple configurations, then runs static analysis and
+coverage as separate jobs.
 
-Example CI matrix:
+CI matrix (`build` job):
 
 ```text
 Ubuntu + GCC + Debug
@@ -557,59 +680,19 @@ Ubuntu + Clang + UBSan
 macOS + AppleClang + Release
 ```
 
-Example workflow steps:
+Additional jobs:
 
-```text
-checkout
-install dependencies
-configure preset
-build preset
-run CTest
-run sanitizer tests
-run static analysis
-generate coverage, optional
-```
+* `static-analysis` -- configures the `debug` preset on Ubuntu and runs
+  `scripts/run-clang-tidy.sh` against it.
+* `coverage` -- configures the `coverage` preset on Ubuntu (real GCC,
+  exercising the `lcov`/`gcov` path of `scripts/coverage.sh`) and uploads
+  the HTML report as a build artifact.
 
-## Example GitHub Actions Workflow
+ThreadSanitizer is intentionally not part of the CI matrix (it remains
+available locally via the `tsan` preset).
 
-```yaml
-name: CI
-
-on:
-  push:
-  pull_request:
-
-jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            preset: debug
-          - os: ubuntu-latest
-            preset: release
-          - os: ubuntu-latest
-            preset: asan
-          - os: ubuntu-latest
-            preset: ubsan
-          - os: macos-latest
-            preset: release
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure
-        run: cmake --preset ${{ matrix.preset }}
-
-      - name: Build
-        run: cmake --build --preset ${{ matrix.preset }}
-
-      - name: Test
-        run: ctest --preset ${{ matrix.preset }} --output-on-failure
-```
+See [Example GitHub Actions Workflow](.github/workflows/ci.yml) for the
+full workflow file.
 
 ## Build Profiles
 
@@ -680,50 +763,6 @@ Non-goals:
 * creating a full monorepo build system
 * hiding CMake behind custom scripts
 * maximizing demo application complexity
-
-## Roadmap
-
-### Phase 1: Core CMake Structure
-
-* [ ] Add root `CMakeLists.txt`
-* [ ] Add `CMakePresets.json`
-* [ ] Add small C library target
-* [ ] Add small C++ library target
-* [ ] Add CLI executable target
-* [ ] Add basic tests with CTest
-
-### Phase 2: Build Profiles
-
-* [ ] Add debug preset
-* [ ] Add release preset
-* [ ] Add ASan preset
-* [ ] Add UBSan preset
-* [ ] Add TSan preset
-* [ ] Add coverage preset
-
-### Phase 3: Quality Tooling
-
-* [ ] Add compiler warnings module
-* [ ] Add `clang-tidy` support
-* [ ] Add `cppcheck` support
-* [ ] Add formatting script
-* [ ] Add CI workflow
-
-### Phase 4: Packaging
-
-* [ ] Add install rules
-* [ ] Add exported targets
-* [ ] Add package config generation
-* [ ] Add downstream usage example
-* [ ] Add CPack package generation
-
-### Phase 5: Polish
-
-* [ ] Add benchmark target
-* [ ] Add Makefile wrapper
-* [ ] Add toolchain file examples
-* [ ] Add architecture diagram
-* [ ] Add documentation for each build profile
 
 ## Suggested Learning Path
 

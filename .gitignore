@@ -1,0 +1,9 @@
+build/
+install/
+examples/downstream-project/build/
+*.profraw
+*.profdata
+compile_commands.json
+buildlab-*-*.tar.gz
+buildlab-*-*.zip
+_CPack_Packages/
