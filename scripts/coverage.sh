@@ -12,7 +12,14 @@ fi
 
 COMPILER_FILE=$(find "$BUILD_DIR/CMakeFiles" -maxdepth 2 -name 'CMakeCXXCompiler.cmake' | head -1)
 
-if grep -qi "Clang" "$COMPILER_FILE"; then
+# Extract the exact CMAKE_CXX_COMPILER_ID value rather than grepping for
+# "Clang"/"GNU" anywhere in the file -- the file's implicit include/link
+# directory lists can otherwise contain either substring incidentally
+# (e.g. a GNU toolchain's paths mentioning a bundled clang-format tool)
+# and cause a false match.
+COMPILER_ID=$(grep -m1 'set(CMAKE_CXX_COMPILER_ID' "$COMPILER_FILE" | sed -E 's/.*"([A-Za-z]*)".*/\1/')
+
+if [[ "$COMPILER_ID" == "Clang" || "$COMPILER_ID" == "AppleClang" ]]; then
     echo "Detected Clang -- using source-based coverage (llvm-profdata/llvm-cov)."
 
     LLVM_PROFDATA="${LLVM_PROFDATA:-xcrun llvm-profdata}"
@@ -54,7 +61,7 @@ if grep -qi "Clang" "$COMPILER_FILE"; then
 
     echo "HTML report: $BUILD_DIR/coverage-html/index.html"
 
-elif grep -qi "GNU" "$COMPILER_FILE"; then
+elif [[ "$COMPILER_ID" == "GNU" ]]; then
     echo "Detected GCC -- using lcov/gcov."
 
     lcov --directory "$BUILD_DIR" --capture --output-file "$BUILD_DIR/coverage.info" \
@@ -65,6 +72,6 @@ elif grep -qi "GNU" "$COMPILER_FILE"; then
 
     echo "HTML report: $BUILD_DIR/coverage-html/index.html"
 else
-    echo "error: could not determine compiler from $COMPILER_FILE" >&2
+    echo "error: unsupported compiler '$COMPILER_ID' detected from $COMPILER_FILE" >&2
     exit 1
 fi
