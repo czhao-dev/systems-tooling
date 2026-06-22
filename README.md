@@ -512,7 +512,8 @@ covered.
 GitHub Actions CI matrix (see badge at the top of this file for current
 status): `ubuntu-latest`×{gcc-debug, gcc-release, clang-debug, clang-asan,
 clang-ubsan}, `macos-latest`×{clang-release}, plus separate
-`static-analysis` (clang-tidy) and `coverage` (lcov/gcov) jobs.
+`static-analysis` (clang-tidy) and `coverage` (lcov/gcov) jobs -- 8/8 jobs
+passing as of the most recent push.
 
 ## Benchmarks
 
