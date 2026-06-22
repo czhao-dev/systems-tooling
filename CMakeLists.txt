@@ -7,11 +7,23 @@ project(buildlab VERSION 0.1.0
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Each module below owns exactly one concern (options, warnings,
+# sanitizers, coverage, static analysis) and can be read, tested, or
+# copied into another project independently of the others -- see
+# "Architecture" in README.md for the rationale. Order matters here:
+# ProjectOptions.cmake must run first because it declares the option()s
+# and the two INTERFACE targets (buildlab_project_options,
+# buildlab_project_warnings) that every later module attaches flags to.
 include(ProjectOptions)
 include(CompilerWarnings)
 include(Sanitizers)
 include(Coverage)
 include(StaticAnalysis)
+
+# GNUInstallDirs gives us platform-correct CMAKE_INSTALL_LIBDIR/BINDIR/
+# INCLUDEDIR instead of hardcoding "lib"/"bin"/"include" below. CTest
+# defines BUILD_TESTING (default ON) and must be included before
+# enable_testing()/add_subdirectory(tests) further down.
 include(GNUInstallDirs)
 include(CTest)
 
@@ -56,6 +68,11 @@ install(EXPORT buildlabTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/buildlab
 )
 
+# CMakePackageConfigHelpers provides configure_package_config_file() and
+# write_basic_package_version_file(), which together generate the
+# buildlabConfig.cmake / buildlabConfigVersion.cmake pair that makes this
+# project consumable via find_package(buildlab CONFIG REQUIRED) -- see
+# cmake/PackageConfig.cmake.in for the template these are generated from.
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(
