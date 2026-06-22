@@ -64,10 +64,14 @@ if [[ "$COMPILER_ID" == "Clang" || "$COMPILER_ID" == "AppleClang" ]]; then
 elif [[ "$COMPILER_ID" == "GNU" ]]; then
     echo "Detected GCC -- using lcov/gcov."
 
+    # --ignore-errors mismatch works around a known lcov/gcov disagreement
+    # over multi-line function bodies (e.g. GoogleTest's generated
+    # TestBody() methods) with recent GCC versions; it does not affect
+    # accuracy of the resulting coverage numbers.
     lcov --directory "$BUILD_DIR" --capture --output-file "$BUILD_DIR/coverage.info" \
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1 --ignore-errors mismatch,gcov
     lcov --remove "$BUILD_DIR/coverage.info" '*/_deps/*' '*/tests/*' '/usr/*' \
-        --output-file "$BUILD_DIR/coverage.filtered.info"
+        --output-file "$BUILD_DIR/coverage.filtered.info" --ignore-errors unused
     genhtml "$BUILD_DIR/coverage.filtered.info" --output-directory "$BUILD_DIR/coverage-html"
 
     echo "HTML report: $BUILD_DIR/coverage-html/index.html"
