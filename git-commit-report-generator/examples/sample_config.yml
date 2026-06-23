@@ -1,0 +1,30 @@
+default_format: markdown
+risky_commit_file_threshold: 25
+top_results: 10
+
+classification:
+  feature:
+    - add
+    - implement
+    - support
+    - enable
+  bugfix:
+    - fix
+    - bug
+    - issue
+    - correct
+  refactor:
+    - refactor
+    - cleanup
+    - simplify
+  test:
+    - test
+    - coverage
+  documentation:
+    - doc
+    - readme
+  build:
+    - build
+    - cmake
+    - makefile
+    - ci
