@@ -1,0 +1,26 @@
+# CMake build directories
+build/
+build-*/
+
+# Generated synthetic logs (regenerate via bench/generate_logs.py)
+logs/*.log
+
+# Tool output captured by scripts/run_*.sh
+results/*.log
+results/*.info
+results/coverage_html/
+results/*.er/
+
+# Profiling/analysis artifacts left in the repo root by some tools
+gmon.out
+perf.data*
+callgrind.out.*
+cachegrind.out.*
+massif.out.*
+heaptrack.*.gz
+*.gcda
+*.gcno
+
+# Editor/OS noise
+.DS_Store
+compile_commands.json
