@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+            preset: debug
+          - os: ubuntu-latest
+            compiler: gcc
+            preset: release
+          - os: ubuntu-latest
+            compiler: clang
+            preset: debug
+          - os: ubuntu-latest
+            compiler: clang
+            preset: asan
+          - os: ubuntu-latest
+            compiler: clang
+            preset: ubsan
+          - os: macos-latest
+            compiler: clang
+            preset: release
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cppcheck
+
+      - name: Install macOS build tools
+        if: runner.os == 'macOS'
+        run: brew install ninja cppcheck
+
+      - name: Select Clang compiler (Linux)
+        if: matrix.compiler == 'clang' && runner.os == 'Linux'
+        run: |
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+
+      - name: Select GCC compiler (Linux)
+        if: matrix.compiler == 'gcc' && runner.os == 'Linux'
+        run: |
+          echo "CC=gcc" >> "$GITHUB_ENV"
+          echo "CXX=g++" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+      - name: cppcheck
+        if: matrix.preset == 'debug'
+        run: cppcheck --enable=all --inconclusive --std=c++17 --error-exitcode=0 src include
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build clang-tidy
+      - name: Configure
+        run: cmake --preset debug
+      - name: Build (so headers from fetched test deps exist)
+        run: cmake --build --preset debug
+      - name: Run clang-tidy
+        run: ./scripts/run-clang-tidy.sh build/debug
+
+  coverage:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build lcov
+      - name: Configure
+        run: cmake --preset coverage
+      - name: Build
+        run: cmake --build --preset coverage
+      - name: Test + coverage report
+        run: |
+          ctest --preset coverage --output-on-failure
+          ./scripts/coverage.sh build/coverage
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: build/coverage/coverage-html

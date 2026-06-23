@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# buildlab_core / buildlab_net have no external dependencies of their own
+# (GoogleTest is test-only, fetched via FetchContent, and never part of the
+# installed package), so there is nothing to find_dependency() here.
+
+include("${CMAKE_CURRENT_LIST_DIR}/buildlabTargets.cmake")
+
+check_required_components(buildlab)
