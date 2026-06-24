@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/osv_dep_scanner"
+
+exit OsvDepScanner::Cli.run(ARGV)

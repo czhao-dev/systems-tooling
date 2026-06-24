@@ -1,0 +1,6 @@
+flask==1.0.0
+# a comment line
+requests>=2.0
+-r other.txt
+django==3.2.1
+numpy[extra]==1.21.0

@@ -1,0 +1,85 @@
+Dependency Vulnerability Scan
+=============================
+Manifests scanned: 4
+Dependencies checked: 5
+Findings: 20
+Worst severity: high
+
+[HIGH] GHSA-69ch-w2m2-3vjp
+  golang.org/x/text/language Denial of service via crafted Accept-Language header
+  affects gomod:golang.org/x/text@v0.3.0 (examples/go.mod)
+
+[HIGH] GHSA-ppp9-7jff-5vj2
+  golang.org/x/text/language Out-of-bounds Read vulnerability
+  affects gomod:golang.org/x/text@v0.3.0 (examples/go.mod)
+
+[HIGH] GHSA-m2qf-hxjv-5gpq
+  Flask vulnerable to possible disclosure of permanent session cookie due to missing Vary: Cookie header
+  affects pypi:flask@2.0.0 (examples/requirements.txt)
+
+[HIGH] GHSA-35jh-r3h4-6jhm
+  Command Injection in lodash
+  affects npm:lodash@4.17.15 (examples/package-lock.json)
+
+[HIGH] GHSA-p6mc-m468-83gw
+  Prototype Pollution in lodash
+  affects npm:lodash@4.17.15 (examples/package-lock.json)
+
+[HIGH] GHSA-r5fr-rjxr-66jc
+  lodash vulnerable to Code Injection via `_.template` imports key names
+  affects npm:lodash@4.17.15 (examples/package-lock.json)
+
+[MEDIUM] GHSA-j8r2-6x86-q33q
+  Unintended leak of Proxy-Authorization header in requests
+  affects pypi:requests@2.25.0 (examples/requirements.txt)
+
+[MEDIUM] GHSA-gc5v-m9x4-r6x2
+  Requests has Insecure Temp File Reuse in its extract_zipped_paths() utility function
+  affects pypi:requests@2.25.0 (examples/requirements.txt)
+
+[MEDIUM] GHSA-9wx4-h78v-vm56
+  Requests `Session` object does not verify requests after making first request with verify=False
+  affects pypi:requests@2.25.0 (examples/requirements.txt)
+
+[MEDIUM] GHSA-9hjg-9r4m-mvj7
+  Requests vulnerable to .netrc credentials leak via malicious URLs
+  affects pypi:requests@2.25.0 (examples/requirements.txt)
+
+[MEDIUM] GHSA-xxjr-mmjv-4gpg
+  Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions
+  affects npm:lodash@4.17.15 (examples/package-lock.json)
+
+[MEDIUM] GHSA-f23m-r3pf-42rh
+  lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`
+  affects npm:lodash@4.17.15 (examples/package-lock.json)
+
+[MEDIUM] GHSA-29mw-wpgm-hmr9
+  Regular Expression Denial of Service (ReDoS) in lodash
+  affects npm:lodash@4.17.15 (examples/package-lock.json)
+
+[MEDIUM] GHSA-5rcv-m4m3-hfh7
+  golang.org/x/text Infinite loop
+  affects gomod:golang.org/x/text@v0.3.0 (examples/go.mod)
+
+[LOW] GHSA-68rp-wp8r-4726
+  Flask session does not add `Vary: Cookie` header when accessed in some ways
+  affects pypi:flask@2.0.0 (examples/requirements.txt)
+
+[UNKNOWN] PYSEC-2023-62
+  affects pypi:flask@2.0.0 (examples/requirements.txt)
+
+[UNKNOWN] GO-2022-1059
+  Denial of service via crafted Accept-Language header in golang.org/x/text/language
+  affects gomod:golang.org/x/text@v0.3.0 (examples/go.mod)
+
+[UNKNOWN] GO-2021-0113
+  Out-of-bounds read in golang.org/x/text/language
+  affects gomod:golang.org/x/text@v0.3.0 (examples/go.mod)
+
+[UNKNOWN] GO-2020-0015
+  Infinite loop when decoding some inputs in golang.org/x/text
+  affects gomod:golang.org/x/text@v0.3.0 (examples/go.mod)
+
+[UNKNOWN] PYSEC-2023-74
+  affects pypi:requests@2.25.0 (examples/requirements.txt)
+

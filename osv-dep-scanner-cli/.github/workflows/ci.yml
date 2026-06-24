@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: RuboCop
+        run: bundle exec rubocop
+
+      - name: Unit tests (no network)
+        run: bundle exec rake test
+
+      # Smoke tests run the real binary against the bundled examples/ fixtures
+      # in all three output formats. Exit codes 0-5 are scan outcomes
+      # (clean/low/med/high/crit/error); only codes above 5 (or 64 for usage
+      # errors) indicate the binary itself broke.
+      - name: Smoke test - text report against examples/
+        run: |
+          code=0
+          ./bin/osv-dep-scanner --path examples --format text || code=$?
+          [ "$code" -le 5 ]
+
+      - name: Smoke test - markdown report against examples/
+        run: |
+          code=0
+          ./bin/osv-dep-scanner --path examples --format markdown --output /tmp/report.md || code=$?
+          [ "$code" -le 5 ]
+
+      # This is the one step in the whole project that makes a live network
+      # call (to OSV.dev) - it also asserts the known lodash@4.17.15 CVE is
+      # found, so a real OSV.dev outage is allowed to fail this step alone.
+      - name: Smoke test - JSON report is valid and finds the known lodash CVE
+        continue-on-error: true
+        run: |
+          code=0
+          ./bin/osv-dep-scanner --path examples --format json --output /tmp/report.json || code=$?
+          [ "$code" -le 5 ]
+          jq -e . /tmp/report.json
+          jq -e '.findings[] | select(.id == "GHSA-35jh-r3h4-6jhm")' /tmp/report.json

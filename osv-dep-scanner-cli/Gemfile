@@ -1,0 +1,18 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+# No runtime gems: the library is built entirely on Ruby's standard library
+# (net/http, json, optparse, find) - see README for the rationale.
+
+group :development, :test do
+  gem "minitest"
+  gem "rake"
+  gem "rubocop", require: false
+end
+
+group :test do
+  # Removed from Ruby's default gems in 3.0+; used only to stand up a local
+  # HTTP server in osv/client_test.rb (the Ruby analogue of Go's httptest).
+  gem "webrick"
+end

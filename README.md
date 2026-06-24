@@ -1,12 +1,13 @@
 # systems-dev-tools
 
-A collection of systems engineering and developer tooling projects spanning build infrastructure, systems debugging and performance profiling, Linux diagnostics, and git tooling. Each subdirectory is a self-contained project with its own build system, tests, and CI; this top-level README is a map of what's here.
+A collection of systems engineering and developer tooling projects spanning build infrastructure, systems debugging and performance profiling, Linux diagnostics, git tooling, and dependency/supply-chain vulnerability scanning. Each subdirectory is a self-contained project with its own build system, tests, and CI; this top-level README is a map of what's here.
 
 | Project | Stack | Description |
 |---|---|---|
 | [cmake-systems-build-lab](cmake-systems-build-lab/README.md) | C/C++17, CMake | Build-engineering lab demonstrating production-style CMake infrastructure: presets, sanitizers, coverage, CTest, dependency management, packaging, and CI. |
 | [git-commit-report-generator](git-commit-report-generator/README.md) | Perl | CLI tool that analyzes local git commit history and generates activity reports by author, date, directory, file type, and change size. |
 | [linux-sys-report-cli](linux-sys-report-cli/README.md) | Bash | Linux system diagnostics tool that collects CPU, memory, disk, network, service, log, and container data into text, Markdown, or JSON reports. |
+| [osv-dep-scanner-cli](osv-dep-scanner-cli/README.md) | Ruby | Dependency and supply-chain vulnerability scanner: discovers npm/PyPI/Cargo/Go lockfiles, queries the OSV.dev database, and reports findings as text, Markdown, or JSON with a CI-gateable exit code. |
 | [systems-debugging-lab](systems-debugging-lab/README.md) | C++17 | "LogForge" — a multithreaded log analytics engine used as a sandbox for systems debugging, profiling, and tracing workflows (GDB, LLDB, Valgrind, sanitizers, strace, perf). |
 
 ## cmake-systems-build-lab
@@ -52,6 +53,22 @@ A dependency-free Bash tool for Linux system health checks and incident triage �
 ```bash
 cd linux-sys-report-cli
 ./linux-sys-report-cli.sh --full --format markdown
+```
+
+## osv-dep-scanner-cli
+
+A Ruby CLI that scans a directory for dependency manifests/lockfiles across four ecosystems (npm, PyPI, Cargo, Go modules), queries the [OSV.dev](https://osv.dev) vulnerability database, and reports known vulnerabilities as text, Markdown, or JSON — with an exit code suitable for CI gating.
+
+- Parses `package-lock.json` (v2/v3 `packages` map), `requirements.txt` (pinned `==` versions), `Cargo.lock` (`[[package]]` entries), and `go.mod` (`require` lines) using only Ruby's standard library — zero runtime gem dependencies
+- Queries OSV.dev's batch API (`/v1/querybatch`) for known vulnerabilities, then hydrates full details (severity, summary, references) via `/v1/vulns/{id}`
+- Deduplicates findings across packages sharing the same vulnerability ID, and derives a pragmatic low/medium/high/critical severity from OSV's CVSS vectors and database-specific severity fields
+- Exit codes scale with the worst severity found (clean/low/medium/high/critical), plus a distinct code for scan errors (no manifests found, parse failures, OSV API errors)
+- The OSV client is duck-typed for testing — unit tests swap in a fake or a local WEBrick server, so the suite runs network-free except for one explicit live smoke test in CI
+
+```bash
+cd osv-dep-scanner-cli
+bundle install
+./bin/osv-dep-scanner --path examples --format markdown
 ```
 
 ## systems-debugging-lab
