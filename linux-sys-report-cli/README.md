@@ -1,28 +1,46 @@
 # linux-sys-report-cli
 
 [![CI](https://github.com/czhao-dev/linux-sys-report-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/czhao-dev/linux-sys-report-cli/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Shell: Bash](https://img.shields.io/badge/Shell-Bash-4EAA25)](linux-sys-report-cli.sh)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A Bash-based Linux system diagnostics and health report tool.
+A dependency-free Bash tool for Linux system diagnostics and incident triage.
 
-`linux-sys-report-cli` collects CPU, memory, disk, network, process, service, log, and container diagnostics, then generates a readable text, Markdown, or JSON report. It's built for quick troubleshooting, incident triage, and as a practical demonstration of systems/backend scripting skills.
+`linux-sys-report-cli` collects CPU, memory, disk, network, process, service, log, and container data, then generates a readable text, Markdown, or JSON report with an exit code suitable for cron jobs and CI gates.
 
-## Overview
+## Architecture
 
-linux-sys-report-cli is a standalone shell tool for inspecting the health of a Linux machine. It answers questions such as:
+```mermaid
+flowchart TD
+    CLI["linux-sys-report-cli.sh\n(arg parsing · config loading · dispatch)"]
 
-- Is the system under CPU or memory pressure?
-- Is disk space or inode usage close to full?
-- Which processes are consuming the most resources?
-- Which ports are listening?
-- Are important services running?
-- Are there recent system errors?
-- Is DNS and outbound network connectivity working?
-- Are Docker containers healthy?
-- What should be checked next?
+    subgraph CHECKS["lib/ — diagnostic modules"]
+        SYS[system]
+        CPU[cpu]
+        MEM[memory]
+        DISK[disk]
+        NET[network]
+        SVC[services]
+        LOG[logs]
+        DOCK[docker]
+    end
 
-The goal isn't to replace observability platforms like Prometheus, Grafana, or Datadog. Instead, this project implements a single-file-friendly, dependency-free diagnostics tool using standard Linux utilities and defensive Bash scripting.
+    subgraph FORMATTERS["lib/ — report formatters"]
+        FMT_TXT[report_text]
+        FMT_MD[report_markdown]
+        FMT_JSON[report_json]
+    end
+
+    CLI --> CHECKS
+    CHECKS --> AGG["Status aggregation\n(OK / WARNING / CRITICAL / UNKNOWN)"]
+    AGG --> FORMATTERS
+    FMT_TXT --> OUT_TXT[Terminal]
+    FMT_MD --> OUT_MD[Markdown file]
+    FMT_JSON --> OUT_JSON[JSON file]
+    AGG --> EXIT["Exit code 0–3"]
+```
+
+Every check degrades gracefully: if a required tool (`systemctl`, `docker`, `ss`, …) is absent, that section reports `UNKNOWN` instead of failing the run.
 
 ## Features
 
@@ -33,88 +51,97 @@ The goal isn't to replace observability platforms like Prometheus, Grafana, or D
 - **Network** — interfaces, default gateway, DNS, internet connectivity, optional HTTP endpoint check, listening ports
 - **Services** — failed systemd units, single-service status and logs
 - **Logs** — scans `journalctl` or fallback log files for common error patterns
-- **Docker** — running/stopped/unhealthy containers, restart counts, resource usage (optional, skipped gracefully if Docker isn't available)
-- **Reports** — terminal, Markdown, or JSON output, with summary recommendations and a configurable output path
-
-Every check degrades gracefully: if a tool (`systemctl`, `docker`, `ss`, ...) isn't available, that section reports `UNKNOWN` instead of crashing the whole run.
+- **Docker** — running/stopped/unhealthy containers, restart counts, resource usage (skipped gracefully if Docker isn't available)
+- **Reports** — terminal, Markdown, or JSON output with summary recommendations and a configurable output path
 
 ## Quick Start
 
-Clone the repository, make the entrypoint executable, and run a full report straight from the working directory — no build step or dependencies beyond standard Bash and coreutils. A sample run looks like the reports checked into [`examples/`](examples/): a Markdown report at [`examples/sample-report.md`](examples/sample-report.md) and the equivalent JSON at [`examples/sample-report.json`](examples/sample-report.json).
+Clone the repository and run a full report — no build step or dependencies beyond standard Bash and coreutils:
 
-For a system-wide `linux-sys-report-cli` command, run `scripts/install.sh`, which copies the project into a prefix (`/usr/local` by default, or pass `--prefix` for a user-local install) and symlinks the entrypoint onto `PATH`.
+```bash
+git clone https://github.com/czhao-dev/linux-sys-report-cli.git
+cd linux-sys-report-cli
+chmod +x linux-sys-report-cli.sh
+./linux-sys-report-cli.sh --full --format markdown
+```
+
+For a system-wide `linux-sys-report-cli` command, run `scripts/install.sh` (copies the project to a prefix and symlinks the entrypoint onto `PATH`; default prefix is `/usr/local`, pass `--prefix` for a user-local install).
+
+Sample output is checked in at [`examples/sample-report.md`](examples/sample-report.md) and [`examples/sample-report.json`](examples/sample-report.json).
 
 ## Usage
 
-Run `linux-sys-report-cli.sh [options]` from the project directory (or `linux-sys-report-cli [options]` if installed via `scripts/install.sh`).
+```text
+linux-sys-report-cli.sh [options]
+```
 
 | Option | Description |
-|---|---|
+|--------|-------------|
 | `--full` | Run all diagnostics |
-| `--system`, `--cpu`, `--memory`, `--disk`, `--network`, `--services`, `--logs`, `--docker` | Run an individual diagnostic category |
+| `--system`, `--cpu`, `--memory`, `--disk`, `--network`, `--services`, `--logs`, `--docker` | Run an individual category |
 | `--service NAME` | Check a specific systemd service |
 | `--url URL` | Check an HTTP endpoint |
 | `--format text\|markdown\|json` | Output format (default: `text`) |
-| `--output PATH` | Write the report to a file instead of stdout |
+| `--output PATH` | Write report to a file instead of stdout |
 | `--config PATH` | Load thresholds and targets from a config file |
-| `--verbose` | Print more detail (more processes, more log lines, more ports) |
-| `--quiet` | Print only the summary and recommendations |
+| `--verbose` | More processes, more log lines, more ports |
+| `--quiet` | Summary and recommendations only |
 | `--help` | Show the help message |
 
-The process exits `0` (OK), `1` (WARNING), `2` (CRITICAL), or `3` (UNKNOWN), reflecting the worst status across every category that ran — handy for cron jobs or CI gates.
+Exit codes: `0` OK · `1` WARNING · `2` CRITICAL · `3` UNKNOWN (worst status across all categories that ran).
 
 ## Configuration
 
-linux-sys-report-cli optionally reads a `KEY=VALUE` config file via `--config`, parsed defensively (no arbitrary code execution — only a fixed allowlist of keys is accepted). Supported keys: `DISK_WARNING_THRESHOLD`, `DISK_CRITICAL_THRESHOLD`, `INODE_WARNING_THRESHOLD`, `INODE_CRITICAL_THRESHOLD`, `MEMORY_WARNING_THRESHOLD`, `MEMORY_CRITICAL_THRESHOLD`, `PING_TARGET`, `DNS_TEST_HOST`, `HTTP_TEST_URL`, and `LOG_LOOKBACK`. See [`tests/fixtures/sample.conf`](tests/fixtures/sample.conf) for an example.
+`linux-sys-report-cli` optionally reads a `KEY=VALUE` config file via `--config`. Keys are parsed against a fixed allowlist (no arbitrary code execution). Supported keys:
+
+`DISK_WARNING_THRESHOLD`, `DISK_CRITICAL_THRESHOLD`, `INODE_WARNING_THRESHOLD`, `INODE_CRITICAL_THRESHOLD`, `MEMORY_WARNING_THRESHOLD`, `MEMORY_CRITICAL_THRESHOLD`, `PING_TARGET`, `DNS_TEST_HOST`, `HTTP_TEST_URL`, `LOG_LOOKBACK`
+
+See [`tests/fixtures/sample.conf`](tests/fixtures/sample.conf) for an example.
 
 ## Project Structure
 
-- [`linux-sys-report-cli.sh`](linux-sys-report-cli.sh) — entrypoint: argument parsing, dispatch, exit-code mapping
-- `lib/` — one module per concern: `common`, `system`, `cpu`, `memory`, `disk`, `network`, `services`, `logs`, `docker`, plus `report_text`, `report_markdown`, and `report_json` formatters
-- `tests/` — Bats test suite (`common.bats`, `parsing.bats`, `report.bats`) and fixtures
-- `examples/` — sample generated reports
-- `scripts/` — `install.sh` and `run-shellcheck.sh`
-- `.github/workflows/ci.yml` — GitHub Actions pipeline
+```text
+linux-sys-report-cli/
+├── linux-sys-report-cli.sh          # entrypoint
+├── lib/
+│   ├── common                       # shared helpers (status ranking, JSON escaping)
+│   ├── system, cpu, memory, disk
+│   ├── network, services, logs, docker
+│   └── report_text, report_markdown, report_json
+├── tests/
+│   ├── common.bats
+│   ├── parsing.bats
+│   ├── report.bats
+│   └── fixtures/
+├── examples/
+├── scripts/
+│   ├── install.sh
+│   └── run-shellcheck.sh
+└── .github/workflows/ci.yml
+```
 
 ## Design Principles
 
-**Defensive Bash.** The entrypoint runs under `set -euo pipefail`, with care taken to avoid the classic pitfalls that strict mode introduces around pipelines and `SIGPIPE` (e.g. truncating process listings never closes a pipe early on an upstream producer).
+**Defensive Bash.** Runs under `set -euo pipefail`, with care taken around the classic `SIGPIPE` pitfalls that strict mode introduces (e.g., truncating a process listing never closes a pipe early on an upstream producer).
 
-**Portable where it can be, Linux-first where it matters.** Checks prefer Linux-native sources (`/proc/loadavg`, `/proc/meminfo`, `journalctl`, `systemctl`) and fall back to portable equivalents where reasonable, but service and log diagnostics are inherently systemd/Linux-specific and report `UNKNOWN` elsewhere rather than guessing.
+**Portable where possible, Linux-first where it matters.** Checks prefer Linux-native sources (`/proc/loadavg`, `/proc/meminfo`, `journalctl`, `systemctl`) and report `UNKNOWN` elsewhere rather than guessing on non-Linux hosts.
 
-**Human-readable by default, structured on request.** Terminal output is for humans; Markdown is for incident notes and PRs; JSON is for automation.
+**Human-readable by default, structured on request.** Terminal output is for humans; Markdown is for incident notes and PRs; JSON is for automation pipelines.
 
-**No destructive actions.** linux-sys-report-cli is read-only. It never deletes files, restarts services, kills processes, or changes system configuration.
+**Read-only.** `linux-sys-report-cli` never deletes files, restarts services, kills processes, or changes system configuration.
 
-## Testing & Quality
+## Testing and Quality
 
-- **ShellCheck:** zero warnings across `linux-sys-report-cli.sh`, every file in `lib/`, and `scripts/` (run via `./scripts/run-shellcheck.sh`).
-- **Bats:** 34 tests passing, covering shared helpers (status ranking, JSON escaping, config loading), CLI argument parsing, and all three report formatters (run via `bats tests/`).
-- **CI:** every push and pull request runs ShellCheck, the full Bats suite, and end-to-end smoke tests of all three output formats on `ubuntu-latest` via GitHub Actions.
-
-## What This Project Demonstrates
-
-- Bash scripting and CLI design
-- Linux systems troubleshooting and diagnostics
-- Process, disk, memory, and network inspection
-- Log analysis and Docker inspection
-- Defensive shell scripting (strict mode, graceful degradation, safe config parsing)
-- Report generation across multiple output formats
-- Testable shell code with Bats, and CI for shell projects
+- **ShellCheck** — zero warnings across `linux-sys-report-cli.sh`, every file in `lib/`, and `scripts/` (run via `./scripts/run-shellcheck.sh`).
+- **Bats** — 34 tests covering shared helpers (status ranking, JSON escaping, config loading), CLI argument parsing, and all three report formatters (run via `bats tests/`).
+- **CI** — every push runs ShellCheck, the full Bats suite, and end-to-end smoke tests of all three output formats on `ubuntu-latest`.
 
 ## Limitations
 
-linux-sys-report-cli is a lightweight diagnostics helper, not a continuous monitoring system:
-
-- It does not replace centralized logging or metrics platforms.
-- Some checks require Linux-specific tools and report `UNKNOWN` elsewhere.
-- Some service and log checks may require elevated permissions.
+- Does not replace centralized logging or metrics platforms (Prometheus, Grafana, Datadog, etc.).
+- Service and log checks require systemd and may need elevated permissions.
 - Docker checks require Docker daemon access.
-- Output may vary across Linux distributions.
-
-## Safety
-
-linux-sys-report-cli is read-only by design. It does not delete files, restart services, kill processes, change firewall rules, modify system configuration, or install packages.
+- Some checks report `UNKNOWN` on non-Linux hosts.
 
 ## License
 

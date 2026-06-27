@@ -1,30 +1,43 @@
 # Git Commit Report Generator
 
-A Perl-based command-line tool for generating useful Git commit activity reports from a local repository.
+[![Perl](https://img.shields.io/badge/Perl-5.16%2B-39457E?logo=perl&logoColor=white)](https://www.perl.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-This project analyzes Git history and summarizes commit activity by author, date, directory, file type, and change size. It is designed for developers who want a quick way to understand project activity, identify risky commits, review team contributions, and generate lightweight engineering reports.
+A Perl CLI that turns local git history into structured engineering activity reports — commits by author, changed files by directory and extension, largest and risky commits, and optional commit-type classification by message keyword.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    REPO["Local git repo"]
+    CONFIG["config.yml (optional)"]
+    CLI["bin/git_commit_report.pl"]
+    PARSER["Parser.pm\n(git log / git show / git diff --stat)"]
+    ANALYZER["Analyzer.pm\n(group, rank, classify)"]
+    FORMATTER["Formatter.pm"]
+
+    REPO --> CLI
+    CONFIG --> CLI
+    CLI --> PARSER
+    PARSER --> ANALYZER
+    ANALYZER --> FORMATTER
+
+    FORMATTER --> TXT["text"]
+    FORMATTER --> MD["markdown"]
+    FORMATTER --> CSV["csv"]
+    FORMATTER --> JSON["json"]
+```
 
 ## Features
 
-* Summarize Git commits over a selected date range
-* Group commits by author
-* Group changes by directory or file extension
-* Detect large or risky commits
-* Generate daily, weekly, or monthly activity reports
-* Output reports in text, Markdown, CSV, or JSON format
-* Support filtering by author, branch, date range, and path
-* Provide useful statistics for code reviews, project tracking, and engineering productivity analysis
-
-## Example Use Cases
-
-This tool can be used to answer questions such as:
-
-* Who contributed the most commits this week?
-* Which directories changed the most recently?
-* What were the largest commits in the last month?
-* How many bug-fix, feature, refactor, and test commits were made?
-* Which files or modules are changing frequently?
-* What should be included in a weekly engineering status report?
+- Summarize commits over a selected date range
+- Group commits by author, directory, and file extension
+- Detect large or risky commits (configurable file-count threshold)
+- Classify commits by type — feature, bugfix, refactor, test, docs, build — from message keywords
+- Generate daily, weekly, or monthly activity breakdowns
+- Output as text, Markdown, CSV, or JSON; write to file or stdout
+- Filter by author, branch, date range, and path prefix
+- Optional YAML config file for keywords and thresholds
 
 ## Project Structure
 
@@ -33,11 +46,11 @@ git-commit-report-generator/
 ├── bin/
 │   └── git_commit_report.pl
 ├── lib/
-│   ├── GitCommitReport/
-│   │   ├── Parser.pm
-│   │   ├── Analyzer.pm
-│   │   ├── Formatter.pm
-│   │   └── Utils.pm
+│   └── GitCommitReport/
+│       ├── Parser.pm
+│       ├── Analyzer.pm
+│       ├── Formatter.pm
+│       └── Utils.pm
 ├── examples/
 │   ├── sample_report.md
 │   └── sample_config.yml
@@ -45,137 +58,86 @@ git-commit-report-generator/
 │   ├── parser.t
 │   ├── analyzer.t
 │   └── formatter.t
-├── README.md
 ├── Makefile.PL
 └── LICENSE
 ```
 
 ## Requirements
 
-* Perl 5.16 or later
-* Git
-* A local Git repository
+- Perl 5.16 or later
+- Git
+- A local git repository
 
-Recommended Perl modules:
+Recommended modules (some may already be in your Perl installation):
 
-* `Getopt::Long`
-* `File::Find`
-* `Time::Piece`
-* `JSON::PP`
-* `Text::CSV`
-* `YAML::Tiny`
-
-Some of these modules may already be included with your Perl installation.
+`Getopt::Long`, `File::Find`, `Time::Piece`, `JSON::PP`, `Text::CSV`, `YAML::Tiny`
 
 ## Installation
 
-Clone the repository:
-
 ```bash
-git clone https://github.com/your-username/git-commit-report-generator.git
+git clone https://github.com/czhao-dev/git-commit-report-generator.git
 cd git-commit-report-generator
-```
 
-Install dependencies:
-
-```bash
+# Install dependencies (or use cpanm)
 cpan Getopt::Long File::Find Time::Piece JSON::PP Text::CSV YAML::Tiny
-```
 
-Or, if using `cpanm`:
-
-```bash
-cpanm Getopt::Long File::Find Time::Piece JSON::PP Text::CSV YAML::Tiny
-```
-
-Make the main script executable:
-
-```bash
 chmod +x bin/git_commit_report.pl
 ```
 
 ## Usage
 
-Run the tool inside a Git repository:
+Run inside any git repository:
 
 ```bash
-perl bin/git_commit_report.pl
-```
-
-Generate a report for the last 7 days:
-
-```bash
+# Last 7 days, default text output
 perl bin/git_commit_report.pl --since "7 days ago"
-```
 
-Generate a report for a specific date range:
+# Specific date range, Markdown output to file
+perl bin/git_commit_report.pl --since "2026-01-01" --until "2026-01-31" \
+    --format markdown --output report.md
 
-```bash
-perl bin/git_commit_report.pl --since "2026-01-01" --until "2026-01-31"
-```
+# Filter by author and branch
+perl bin/git_commit_report.pl --author "Alice" --branch main
 
-Generate a Markdown report:
+# Analyze a subdirectory, top 5 results
+perl bin/git_commit_report.pl --path src/ --top 5
 
-```bash
-perl bin/git_commit_report.pl --format markdown --output report.md
-```
-
-Generate a CSV report:
-
-```bash
-perl bin/git_commit_report.pl --format csv --output report.csv
-```
-
-Filter by author:
-
-```bash
-perl bin/git_commit_report.pl --author "Alice"
-```
-
-Analyze a specific branch:
-
-```bash
-perl bin/git_commit_report.pl --branch main
-```
-
-Analyze changes under a specific directory:
-
-```bash
-perl bin/git_commit_report.pl --path src/
+# Use a config file
+perl bin/git_commit_report.pl --config examples/sample_config.yml
 ```
 
 ## Command-Line Options
 
-| Option                  | Description                                         |
-| ----------------------- | --------------------------------------------------- |
-| `--since <date>`        | Start date for commit analysis                      |
-| `--until <date>`        | End date for commit analysis                        |
-| `--author <name>`       | Filter commits by author                            |
-| `--branch <branch>`     | Analyze a specific Git branch                       |
-| `--path <path>`         | Analyze changes under a specific file or directory  |
-| `--format <type>`       | Output format: `text`, `markdown`, `csv`, or `json` |
-| `--output <file>`       | Write report to a file                              |
-| `--top <N>`             | Show top N results for ranked sections              |
-| `--risky-threshold <N>` | Mark commits touching more than N files as risky    |
-| `--help`                | Show help message                                   |
+| Option                  | Description                                           |
+|-------------------------|-------------------------------------------------------|
+| `--since <date>`        | Start date for analysis                               |
+| `--until <date>`        | End date for analysis                                 |
+| `--author <name>`       | Filter commits by author                              |
+| `--branch <branch>`     | Analyze a specific branch                             |
+| `--path <path>`         | Analyze changes under a specific file or directory    |
+| `--format <type>`       | Output format: `text`, `markdown`, `csv`, or `json`   |
+| `--output <file>`       | Write report to a file                                |
+| `--top <N>`             | Show top N results for ranked sections                |
+| `--risky-threshold <N>` | Mark commits touching more than N files as risky      |
+| `--config <file>`       | Load keywords and thresholds from a YAML config file  |
+| `--help`                | Show help message                                     |
 
 ## Sample Output
 
 ```text
 Git Commit Activity Report
 ==========================
-
 Repository: example-project
-Branch: main
+Branch:     main
 Date Range: 2026-01-01 to 2026-01-31
 
 Summary
 -------
-Total commits: 128
-Total authors: 6
-Files changed: 342
-Lines added: 12,450
-Lines deleted: 7,820
+Total commits:   128
+Total authors:   6
+Files changed:   342
+Lines added:     12,450
+Lines deleted:   7,820
 
 Commits by Author
 -----------------
@@ -194,61 +156,27 @@ scripts/     28 files changed
 
 Largest Commits
 ---------------
-1. a1b2c3d  Alice    48 files changed    Refactor parser module
-2. e4f5g6h  Bob      36 files changed    Add report formatter
-3. i7j8k9l  Diana    29 files changed    Update unit tests
+1. a1b2c3d  Alice  48 files  Refactor parser module
+2. e4f5g6h  Bob    36 files  Add report formatter
+3. i7j8k9l  Diana  29 files  Update unit tests
 
-Risky Commits
--------------
-a1b2c3d  Alice    48 files changed    Refactor parser module
-e4f5g6h  Bob      36 files changed    Add report formatter
+Commit Type Summary
+-------------------
+Feature        35
+Bug Fix        28
+Test           22
+Refactor       17
+Documentation   9
+Build           6
+Other          11
 ```
-
-## How It Works
-
-The tool uses Git commands such as:
-
-```bash
-git log
-git show
-git diff --stat
-```
-
-It parses the command output, extracts commit metadata, analyzes changed files, and generates a structured report.
-
-The analysis pipeline is organized into three main stages:
-
-1. **Parsing**
-   Extract commit hash, author, date, subject, changed files, insertions, and deletions.
-
-2. **Analysis**
-   Group commits by author, directory, file extension, date, and change size.
-
-3. **Formatting**
-   Generate output in text, Markdown, CSV, or JSON format.
-
-## Report Categories
-
-The generated report may include:
-
-* Overall commit summary
-* Commits by author
-* Commits by date
-* Files changed by directory
-* Files changed by extension
-* Largest commits
-* Risky commits
-* Most frequently changed files
-* Commit message classification
 
 ## Commit Classification
 
-The tool can optionally classify commits based on keywords in the commit subject.
+Commits are classified by matching keywords in the subject line. The mapping is configurable via YAML.
 
-Example categories:
-
-| Category      | Example Keywords                        |
-| ------------- | --------------------------------------- |
+| Category      | Default Keywords                        |
+|---------------|-----------------------------------------|
 | Feature       | `add`, `implement`, `support`, `enable` |
 | Bug Fix       | `fix`, `bug`, `issue`, `correct`        |
 | Refactor      | `refactor`, `cleanup`, `simplify`       |
@@ -256,25 +184,7 @@ Example categories:
 | Documentation | `doc`, `readme`, `comment`              |
 | Build         | `build`, `cmake`, `makefile`, `ci`      |
 
-Example:
-
-```text
-Commit Type Summary
--------------------
-Feature        35
-Bug Fix        28
-Refactor       17
-Test           22
-Documentation   9
-Build           6
-Other          11
-```
-
 ## Configuration File
-
-A configuration file can be used to customize report behavior.
-
-Example `config.yml`:
 
 ```yaml
 default_format: markdown
@@ -282,80 +192,23 @@ risky_commit_file_threshold: 25
 top_results: 10
 
 classification:
-  feature:
-    - add
-    - implement
-    - support
-    - enable
-  bugfix:
-    - fix
-    - bug
-    - issue
-    - correct
-  refactor:
-    - refactor
-    - cleanup
-    - simplify
-  test:
-    - test
-    - coverage
-  documentation:
-    - doc
-    - readme
-  build:
-    - build
-    - cmake
-    - makefile
-    - ci
-```
-
-Run with a config file:
-
-```bash
-perl bin/git_commit_report.pl --config examples/sample_config.yml
+  feature:   [add, implement, support, enable]
+  bugfix:    [fix, bug, issue, correct]
+  refactor:  [refactor, cleanup, simplify]
+  test:      [test, coverage]
+  documentation: [doc, readme]
+  build:     [build, cmake, makefile, ci]
 ```
 
 ## Testing
 
-Run unit tests:
-
 ```bash
+# Run all unit tests
 prove -l t/
-```
 
-Run a specific test file:
-
-```bash
+# Run a specific test file
 prove -l t/parser.t
 ```
-
-## Development Plan
-
-Planned improvements:
-
-* Add HTML report output
-* Add charts for commit trends
-* Add support for multiple repositories
-* Add blame-based ownership summary
-* Add module-level churn analysis
-* Add GitHub Actions integration
-* Add support for generating release notes
-* Add interactive terminal summary
-
-## Why This Project Is Useful
-
-This project demonstrates practical scripting and software engineering skills, including:
-
-* Perl command-line tool development
-* Git automation
-* Text parsing
-* Regular expressions
-* Report generation
-* Modular software design
-* Unit testing
-* Engineering productivity tooling
-
-It is especially useful for developers working with large codebases, frequent commits, regression workflows, and long-running software projects.
 
 ## License
 
