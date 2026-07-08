@@ -42,6 +42,28 @@ flowchart TD
 
 Every check degrades gracefully: if a required tool (`systemctl`, `docker`, `ss`, …) is absent, that section reports `UNKNOWN` instead of failing the run.
 
+## Project Structure
+
+```text
+linux-sys-report-cli/
+├── linux-sys-report-cli.sh          # entrypoint
+├── lib/
+│   ├── common                       # shared helpers (status ranking, JSON escaping)
+│   ├── system, cpu, memory, disk
+│   ├── network, services, logs, docker
+│   └── report_text, report_markdown, report_json
+├── tests/
+│   ├── common.bats
+│   ├── parsing.bats
+│   ├── report.bats
+│   └── fixtures/
+├── examples/
+├── scripts/
+│   ├── install.sh
+│   └── run-shellcheck.sh
+└── .github/workflows/ci.yml
+```
+
 ## Features
 
 - **System** — OS, kernel, hostname, and uptime
@@ -97,28 +119,6 @@ Exit codes: `0` OK · `1` WARNING · `2` CRITICAL · `3` UNKNOWN (worst status a
 `DISK_WARNING_THRESHOLD`, `DISK_CRITICAL_THRESHOLD`, `INODE_WARNING_THRESHOLD`, `INODE_CRITICAL_THRESHOLD`, `MEMORY_WARNING_THRESHOLD`, `MEMORY_CRITICAL_THRESHOLD`, `PING_TARGET`, `DNS_TEST_HOST`, `HTTP_TEST_URL`, `LOG_LOOKBACK`
 
 See [`tests/fixtures/sample.conf`](tests/fixtures/sample.conf) for an example.
-
-## Project Structure
-
-```text
-linux-sys-report-cli/
-├── linux-sys-report-cli.sh          # entrypoint
-├── lib/
-│   ├── common                       # shared helpers (status ranking, JSON escaping)
-│   ├── system, cpu, memory, disk
-│   ├── network, services, logs, docker
-│   └── report_text, report_markdown, report_json
-├── tests/
-│   ├── common.bats
-│   ├── parsing.bats
-│   ├── report.bats
-│   └── fixtures/
-├── examples/
-├── scripts/
-│   ├── install.sh
-│   └── run-shellcheck.sh
-└── .github/workflows/ci.yml
-```
 
 ## Design Principles
 

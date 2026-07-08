@@ -1,4 +1,4 @@
-# systems-dev-tools
+# systems-tooling
 
 A collection of systems engineering and developer tooling projects spanning build infrastructure, debugging and performance profiling, Linux diagnostics, git history analysis, and supply-chain vulnerability scanning. Each subdirectory is a self-contained project with its own build system, tests, and CI.
 

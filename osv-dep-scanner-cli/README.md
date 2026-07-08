@@ -1,6 +1,6 @@
 # osv-dep-scanner-cli
 
-[![CI](https://github.com/czhao-dev/systems-dev-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/czhao-dev/systems-dev-tools/actions/workflows/ci.yml)
+[![CI](https://github.com/czhao-dev/systems-tooling/actions/workflows/ci.yml/badge.svg)](https://github.com/czhao-dev/systems-tooling/actions/workflows/ci.yml)
 [![Ruby](https://img.shields.io/badge/Ruby-3.1%2B-CC342D)](lib/osv_dep_scanner.rb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
 
@@ -44,6 +44,22 @@ flowchart TD
     REPORT --> OUT_MD[Markdown file]
     REPORT --> OUT_JSON[JSON file]
     AGG --> EXIT["Exit code 0–5"]
+```
+
+## Project Structure
+
+```text
+osv-dep-scanner-cli/
+├── bin/osv-dep-scanner
+├── lib/osv_dep_scanner/
+│   ├── manifest/          # npm.rb, pypi.rb, cargo.rb, gomod.rb, manifest.rb
+│   ├── osv/               # client.rb, severity.rb
+│   ├── report/            # text.rb, markdown.rb, json.rb
+│   ├── scan.rb
+│   ├── aggregate.rb
+│   └── cli.rb
+├── test/                  # Minitest suite, fixtures under test/fixtures/
+└── examples/              # Multi-ecosystem fixture set
 ```
 
 ## Supported Ecosystems
@@ -107,22 +123,6 @@ A scan error (code 5) always takes precedence over a severity code — "the scan
 5. **Derive severity** — precedence: `database_specific.severity` string → `affected[].ecosystem_specific.severity` string (highest, if several) → CVSS vector present only → treat as `medium` (known simplification) → `unknown`.
 
 The OSV client is duck-typed (`#query_batch` / `#get_vuln`) so orchestration tests inject a fake with no HTTP involved; the client's own tests spin up a local WEBrick server with canned responses.
-
-## Project Structure
-
-```text
-osv-dep-scanner-cli/
-├── bin/osv-dep-scanner
-├── lib/osv_dep_scanner/
-│   ├── manifest/          # npm.rb, pypi.rb, cargo.rb, gomod.rb, manifest.rb
-│   ├── osv/               # client.rb, severity.rb
-│   ├── report/            # text.rb, markdown.rb, json.rb
-│   ├── scan.rb
-│   ├── aggregate.rb
-│   └── cli.rb
-├── test/                  # Minitest suite, fixtures under test/fixtures/
-└── examples/              # Multi-ecosystem fixture set
-```
 
 ## Testing and Quality
 
